@@ -5,11 +5,11 @@
 // left-hand side by the inverse of its right-hand side, so the whole word is
 // the identity of the tube groupoid, written in a complicated way.
 export const DEMO_OBJECT = { f: 4, b: 4 };
-export const DEMO_WORD = `f0+ f1+ f0+ f1- f0- f1-   # braid, front row
+export const DEMO_WORD = `f0+ f1+ f0+ f1- f0- f1-   # braid, front bed
 f0+ f2+ f0- f2-           # distant commute, front
-b0+ b1+ b0+ b1- b0- b1-   # braid, back row
+b0+ b1+ b0+ b1- b0- b1-   # braid, back bed
 b0+ b2+ b0- b2-           # distant commute, back
-f0+ b0+ f0- b0-           # rows commute
+f0+ b0+ f0- b0-           # beds commute
 f1+ L+ f0- L-             # L bookkeeping (front)
 b0+ L+ b0- L-             # L bookkeeping (back)
 f0+ R+ f0- R-             # R bookkeeping (front)

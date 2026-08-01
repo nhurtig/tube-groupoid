@@ -73,8 +73,8 @@
   <div id="helpCard">
     <button id="helpClose" type="button">✕ close</button>
     <h2>The tube groupoid</h2>
-    <p>Braids on a tube: a <b>front</b> row of strands (red) and a <b>back</b> row (blue),
-    joined by two seams. An object is a pair <code>(f, b)</code> — how many strands each row
+    <p>Braids on a tube: a <b>front</b> bed of strands (red) and a <b>back</b> bed (blue),
+    joined by two seams. An object is a pair <code>(f, b)</code> — how many strands each bed
     holds. The word below the start object is read top-to-bottom: each generator is one
     vertical unit of braid.</p>
 
@@ -87,10 +87,10 @@
       <li><code>b0+ b1+ …</code> — crossing of adjacent <b>back</b> strands. Back strands are
         numbered B₁ … B_b from page-<i>right</i> to page-left, so <code>b0+</code> crosses the
         two rightmost.</li>
-      <li><code>L+</code> — the leftmost front strand (F₁) rides up around the <b>left seam</b>
-        and appends at the left end of the back row, becoming B<sub>b+1</sub>.</li>
-      <li><code>R+</code> — the rightmost back strand (B₁) rides around the <b>right seam</b>
-        and appends at the right end of the front row, becoming F<sub>f+1</sub>.</li>
+      <li><code>L+</code> — the leftmost front strand rides up around the <b>left seam</b>
+        and appends at the left end of the back bed.</li>
+      <li><code>R+</code> — the rightmost back strand rides around the <b>right seam</b>
+        and appends at the right end of the front bed.</li>
       <li><b>Sign rule:</b> positive crossings are left-over-right from every viewpoint
         (both from inside the annulus and from outside). Bare <code>L</code>, <code>R</code>
         mean <code>L+</code>, <code>R+</code>.</li>
@@ -102,7 +102,7 @@
     <ul class="rel">
       <li>fi f(i+1) fi = f(i+1) fi f(i+1) <span class="dim">— braid; same for b</span></li>
       <li>fi fj = fj fi, |i−j| ≥ 2 <span class="dim">— distant crossings; same for b</span></li>
-      <li>fi bj = bj fi <span class="dim">— the rows commute</span></li>
+      <li>fi bj = bj fi <span class="dim">— the beds commute</span></li>
       <li>f(i+1) L+ = L+ fi,&nbsp;&nbsp; bj L+ = L+ bj <span class="dim">— L bookkeeping</span></li>
       <li>fi R+ = R+ fi,&nbsp;&nbsp; b(j+1) R+ = R+ bj <span class="dim">— R bookkeeping</span></li>
       <li>L+ R+ = R+ L+ <span class="dim">— conveyor</span></li>
@@ -133,6 +133,8 @@
     <p class="dim">The preloaded demo word walks through every relation: each line multiplies a
     relation’s left-hand side by the inverse of its right-hand side, so the whole word is the
     identity — just written in a complicated way.</p>
+
+    <p class="dim">Disclaimer: this site was vibe coded.</p>
   </div>
 </div>
 
