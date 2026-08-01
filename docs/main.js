@@ -3,9 +3,9 @@ import { parseWord, simulate, strandPaths, DEMO_WORD, DEMO_OBJECT } from './engi
 
 // --- constants -------------------------------------------------------------
 
-const GEOM = { spacing: 1, bedZ: 1.1, crossZ: 0.45, seamMargin: 1.4 };
+const GEOM = { spacing: 1, bedZ: 2.2, crossZ: 0.45, seamMargin: 1.4 };
 const STRAND_RADIUS = 0.07;
-const OUTLINE_RADIUS = 0.17;
+const OUTLINE_RADIUS = 0.14;
 const FRONT_CAM_DIST = 7;      // camera z in front view: bedZ + FRONT_CAM_DIST
 const MOVE_SPEED = 5;          // world units / second
 const LOOK_SPEED = 0.005;      // radians / pixel
@@ -224,7 +224,14 @@ const bInput = document.getElementById('bInput');
 const wordInput = document.getElementById('wordInput');
 const errBox = document.getElementById('errBox');
 
-if (!wordInput.value.trim()) {
+// Shareable-link / dev parameters: ?word=…&f=…&b=…&view=front&x=…&y=…&help=0
+const params = new URLSearchParams(location.search);
+
+if (params.has('word')) {
+  wordInput.value = params.get('word');
+  if (params.has('f')) fInput.value = params.get('f');
+  if (params.has('b')) bInput.value = params.get('b');
+} else if (!wordInput.value.trim()) {
   wordInput.value = DEMO_WORD;
   fInput.value = DEMO_OBJECT.f;
   bInput.value = DEMO_OBJECT.b;
@@ -268,7 +275,7 @@ function closeHelp() { helpModal.hidden = true; }
 document.getElementById('helpBtn').addEventListener('click', openHelp);
 document.getElementById('helpClose').addEventListener('click', closeHelp);
 helpModal.addEventListener('click', (e) => { if (e.target === helpModal) closeHelp(); });
-openHelp(); // pops up on first load
+if (params.get('help') !== '0') openHelp(); // pops up on first load
 
 // --- render loop -----------------------------------------------------------
 
@@ -311,6 +318,9 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-setMode('annulus');
+setMode(params.get('view') === 'front' ? 'front' : 'annulus');
 rebuild();
+if (params.has('x')) state.x = Number(params.get('x')) || 0;
+if (params.has('y')) state.y = Number(params.get('y')) || 0;
+clampCamera();
 requestAnimationFrame(frame);
