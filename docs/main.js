@@ -3,15 +3,18 @@ import { parseWord, simulate, strandPaths, DEMO_WORD, DEMO_OBJECT } from './engi
 
 // --- constants -------------------------------------------------------------
 
-const GEOM = { spacing: 1, bedZ: 2.2, crossZ: 0.45, seamMargin: 1.4 };
+const BEDZ_DEFAULT = 2.2;
+const DIST_DEFAULT = 7;
+const GEOM = { spacing: 1, bedZ: BEDZ_DEFAULT, crossZ: 0.45, seamMargin: 1.4 };
 const BEDZ_RANGE = [0.8, 15];  // scrollable bed z-separation (annulus view)
 const DIST_RANGE = [1.5, 45];  // scrollable camera distance (front view)
 const STRAND_RADIUS = 0.07;
 const OUTLINE_RADIUS = 0.14;
-let frontDist = 7;             // camera z in front view: bedZ + frontDist
-const MOVE_BASE = 4;           // world units / second on a fresh keypress
-const MOVE_ACCEL = 1.2;        // speed factor growth per second of held movement
+let frontDist = DIST_DEFAULT;  // camera z in front view: bedZ + frontDist
+const MOVE_BASE = 4;           // world units / second, unaccelerated, at default zoom
+const MOVE_RAMP = 3;           // speed-factor growth per second while moving
 const MOVE_MAX_FACTOR = 10;    // acceleration cap
+const MOVE_DECAY = 6;          // 1/s exponential return toward base speed when idle
 const LOOK_SPEED = 0.005;      // radians / pixel
 const COLORS = { F: 0xd62828, B: 0x1d4ed8, outline: 0x1c1c1c, bg: 0xfafafa };
 
@@ -341,7 +344,7 @@ if (params.get('help') !== '0') openHelp(); // pops up on first load
 
 const hud = document.getElementById('hud');
 let lastT = performance.now();
-let heldTime = 0; // how long a movement key has been held: speed ramps up with it
+let speedFactor = 1; // ramps up while moving, decays smoothly when idle
 
 function frame(now) {
   const dt = Math.min((now - lastT) / 1000, 0.1);
@@ -351,8 +354,14 @@ function frame(now) {
 
   const dy = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
   const lr = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-  heldTime = (dy !== 0 || lr !== 0) ? heldTime + dt : 0;
-  const step = MOVE_BASE * Math.min(1 + MOVE_ACCEL * heldTime, MOVE_MAX_FACTOR) * dt;
+  speedFactor = (dy !== 0 || lr !== 0)
+    ? Math.min(speedFactor + MOVE_RAMP * dt, MOVE_MAX_FACTOR)
+    : 1 + (speedFactor - 1) * Math.exp(-MOVE_DECAY * dt);
+  // The farther out you are (bed separation inside, camera distance outside),
+  // the faster the base movement.
+  const zoom = Math.max(
+    state.mode === 'annulus' ? GEOM.bedZ / BEDZ_DEFAULT : frontDist / DIST_DEFAULT, 0.25);
+  const step = MOVE_BASE * zoom * speedFactor * dt;
   if (lr !== 0) {
     // 'd' goes toward the frustum's right, projected onto the x axis.
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
