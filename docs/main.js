@@ -4,9 +4,11 @@ import { parseWord, simulate, strandPaths, DEMO_WORD, DEMO_OBJECT } from './engi
 // --- constants -------------------------------------------------------------
 
 const GEOM = { spacing: 1, bedZ: 2.2, crossZ: 0.45, seamMargin: 1.4 };
+const BEDZ_RANGE = [0.8, 15];  // scrollable bed z-separation (annulus view)
+const DIST_RANGE = [1.5, 45];  // scrollable camera distance (front view)
 const STRAND_RADIUS = 0.07;
 const OUTLINE_RADIUS = 0.14;
-const FRONT_CAM_DIST = 7;      // camera z in front view: bedZ + FRONT_CAM_DIST
+let frontDist = 7;             // camera z in front view: bedZ + frontDist
 const MOVE_BASE = 4;           // world units / second on a fresh keypress
 const MOVE_ACCEL = 1.2;        // speed factor growth per second of held movement
 const MOVE_MAX_FACTOR = 10;    // acceleration cap
@@ -144,7 +146,7 @@ const state = {
 };
 const keys = { up: false, down: false, left: false, right: false };
 
-function camZ() { return state.mode === 'annulus' ? 0 : GEOM.bedZ + FRONT_CAM_DIST; }
+function camZ() { return state.mode === 'annulus' ? 0 : GEOM.bedZ + frontDist; }
 
 function clampCamera() {
   state.x = Math.min(Math.max(state.x, -current.capX), current.capX);
@@ -183,6 +185,22 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   look.pitch -= e.movementY * LOOK_SPEED;
   look.pitch = Math.min(Math.max(look.pitch, -1.52), 1.52);
 });
+
+// Scroll: annulus view scales the beds' z-separation (down = apart, and the
+// change persists into the front view); front view scales the camera's
+// distance from the front bed (down = away).
+let geomDirty = false;
+renderer.domElement.addEventListener('wheel', (e) => {
+  if (e.ctrlKey) return; // leave browser pinch-zoom alone
+  e.preventDefault();
+  const notches = (e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 300 : 1)) / 100;
+  if (state.mode === 'annulus') {
+    GEOM.bedZ = Math.min(Math.max(GEOM.bedZ + notches * 0.3, BEDZ_RANGE[0]), BEDZ_RANGE[1]);
+    geomDirty = true; // strand paths depend on bedZ — rebuild next frame
+  } else {
+    frontDist = Math.min(Math.max(frontDist + notches * 0.7, DIST_RANGE[0]), DIST_RANGE[1]);
+  }
+}, { passive: false });
 
 function isEditing(e) {
   const t = e.target;
@@ -284,6 +302,8 @@ function buildShareURL() {
   const look = state.look[state.mode];
   p.set('yaw', look.yaw.toFixed(3));
   p.set('pitch', look.pitch.toFixed(3));
+  p.set('bedz', GEOM.bedZ.toFixed(2));
+  p.set('dist', frontDist.toFixed(2));
   p.set('help', '0');
   return u.toString();
 }
@@ -327,6 +347,8 @@ function frame(now) {
   const dt = Math.min((now - lastT) / 1000, 0.1);
   lastT = now;
 
+  if (geomDirty) { geomDirty = false; rebuild(); }
+
   const dy = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
   const lr = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   heldTime = (dy !== 0 || lr !== 0) ? heldTime + dt : 0;
@@ -360,6 +382,14 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+if (params.has('bedz')) {
+  GEOM.bedZ = Math.min(Math.max(Number(params.get('bedz')) || GEOM.bedZ,
+    BEDZ_RANGE[0]), BEDZ_RANGE[1]);
+}
+if (params.has('dist')) {
+  frontDist = Math.min(Math.max(Number(params.get('dist')) || frontDist,
+    DIST_RANGE[0]), DIST_RANGE[1]);
+}
 setMode(params.get('view') === 'front' ? 'front' : 'annulus');
 rebuild();
 if (params.has('x')) state.x = Number(params.get('x')) || 0;
