@@ -116,9 +116,9 @@ function buildBraid(paths) {
   return group;
 }
 
-// --- F / B letters (annulus mode only, behind the beds) --------------------
+// --- F / B letters (both views, always behind the strands) -----------------
 
-function letterMesh(text, faceMinusZ) {
+function letterMesh(text) {
   const cv = document.createElement('canvas');
   cv.width = cv.height = 256;
   const ctx = cv.getContext('2d');
@@ -131,14 +131,16 @@ function letterMesh(text, faceMinusZ) {
   const tex = new THREE.CanvasTexture(cv);
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(3.2, 3.2),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
-  if (faceMinusZ) mesh.rotation.y = Math.PI;
+    // Drawn in a pre-pass without depth writes, so strands always paint over
+    // them: "behind the strands" from every viewpoint.
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+  mesh.renderOrder = -1;
   scene.add(mesh);
   return mesh;
 }
 
-const letterF = letterMesh('F', true);   // beyond the front bed, facing the annulus
-const letterB = letterMesh('B', false);  // beyond the back bed, facing the annulus
+const letterF = letterMesh('F');  // beyond the front bed
+const letterB = letterMesh('B');  // beyond the back bed
 
 // --- camera state / controls -----------------------------------------------
 
@@ -381,13 +383,11 @@ function frame(now) {
   camera.position.set(state.x, state.y, camZ());
   camera.rotation.set(look.pitch, look.yaw, 0);
 
-  const lettersOn = state.mode === 'annulus';
-  letterF.visible = lettersOn;
-  letterB.visible = lettersOn;
-  if (lettersOn) {
-    letterF.position.set(0, state.y, GEOM.bedZ + 2.4);
-    letterB.position.set(0, state.y, -GEOM.bedZ - 2.4);
-  }
+  // Letters ride at camera height, offset sideways so they never superimpose
+  // in the front view; F flips to stay readable from whichever side you're on.
+  letterF.position.set(-2, state.y, GEOM.bedZ + 2.4);
+  letterF.rotation.y = state.mode === 'annulus' ? Math.PI : 0;
+  letterB.position.set(2, state.y, -GEOM.bedZ - 2.4);
 
   const lvl = Math.min(Math.max(Math.floor(state.y), 0), current.counts.length - 1);
   const [cf, cb] = current.counts[lvl];
