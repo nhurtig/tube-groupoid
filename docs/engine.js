@@ -14,7 +14,7 @@ f1+ L+ f0- L-             # L bookkeeping (front)
 b0+ L+ b0- L-             # L bookkeeping (back)
 f0+ R+ f0- R-             # R bookkeeping (front)
 b1+ R+ b0- R-             # R bookkeeping (back)
-L+ R+ L- R-               # conveyor
+L+ R+ L- R-               # spiral
 f0+ L+ L+ b4- L- L-       # seam slide, left
 b0+ R+ R+ f4- R- R-       # seam slide, right`;
 

@@ -13,7 +13,7 @@ This file defines the **tube groupoid** on `n` strands, presented by generators 
 * `TubeObj n` — the objects: pairs `(f, b)` with `f + b = n` (front and back strand counts);
 * `TubeGen n` — the generating quiver: the in-row crossings `σ^F_i`, `σ^B_j` and the two seam
   moves `L`, `R`;
-* `TubeRel n` — the relations (braid, row commutation, `L`/`R` bookkeeping, conveyor, and seam
+* `TubeRel n` — the relations (braid, row commutation, `L`/`R` bookkeeping, spiral, and seam
   slides), as a hom-relation on the free groupoid over `TubeGen n`;
 * `TubeGroupoid n` — the tube groupoid itself: the quotient of the free groupoid on `TubeGen n`
   by `TubeRel n`, a groupoid via `CategoryTheory.Quotient.groupoid`;
@@ -50,11 +50,11 @@ inductive TubeGen (n : ℕ) : TubeObj n → TubeObj n → Type where
   `B_{j+1}`. -/
   | sigmaB (f b : ℕ) (h : f + b = n) (j : ℕ) (h1 : 1 ≤ j) (h2 : j < b) :
       TubeGen n ⟨f, b, h⟩ ⟨f, b, h⟩
-  /-- `L : (f + 1, b) → (f, b + 1)`: the front strand `F₁` travels up the left seam, arriving as
-  `B_{b+1}` (appended, no reindexing of B). -/
+  /-- `L : (f + 1, b) → (f, b + 1)`: the leftmost front strand travels up the left seam and
+  appends at the left end of the back row (no reindexing of B). -/
   | L (f b : ℕ) (h : f + 1 + b = n) : TubeGen n ⟨f + 1, b, h⟩ ⟨f, b + 1, by omega⟩
-  /-- `R : (f, b + 1) → (f + 1, b)`: the back strand `B₁` travels down the right seam, arriving
-  as `F_{f+1}` (appended, no reindexing of F). -/
+  /-- `R : (f, b + 1) → (f + 1, b)`: the rightmost back strand travels down the right seam and
+  appends at the right end of the front row (no reindexing of F). -/
   | R (f b : ℕ) (h : f + (b + 1) = n) : TubeGen n ⟨f, b + 1, h⟩ ⟨f + 1, b, by omega⟩
 
 instance (n : ℕ) : Quiver (TubeObj n) :=
@@ -107,8 +107,8 @@ inductive TubeRel (n : ℕ) : HomRel (Quiver.FreeGroupoid (TubeObj n)) where
       TubeRel n
         ((sigmaF f b h i hi1 hif).free ≫ (sigmaB f b h j hj1 hjb).free)
         ((sigmaB f b h j hj1 hjb).free ≫ (sigmaF f b h i hi1 hif).free)
-  /-- `L` bookkeeping, front row: `σ^F_{i+1} L = L σ^F_i` (the departure of `F₁` shifts the
-  front indices down). -/
+  /-- `L` bookkeeping, front row: `σ^F_{i+1} L = L σ^F_i` (the departure of the leftmost front
+  strand shifts the front indices down). -/
   | slideFL (f b : ℕ) (h : f + 1 + b = n) (i : ℕ) (h1 : 1 ≤ i) (h2 : i < f) :
       TubeRel n
         ((sigmaF (f + 1) b h (i + 1) (by omega) (by omega)).free ≫ (L f b h).free)
@@ -125,15 +125,15 @@ inductive TubeRel (n : ℕ) : HomRel (Quiver.FreeGroupoid (TubeObj n)) where
       TubeRel n
         ((sigmaF f (b + 1) h i h1 h2).free ≫ (R f b h).free)
         ((R f b h).free ≫ (sigmaF (f + 1) b (by omega) i h1 (by omega)).free)
-  /-- `R` bookkeeping, back row: `σ^B_{j+1} R = R σ^B_j` (the departure of `B₁` shifts the back
-  indices down). -/
+  /-- `R` bookkeeping, back row: `σ^B_{j+1} R = R σ^B_j` (the departure of the rightmost back
+  strand shifts the back indices down). -/
   | slideBR (f b : ℕ) (h : f + (b + 1) = n) (j : ℕ) (h1 : 1 ≤ j) (h2 : j < b) :
       TubeRel n
         ((sigmaB f (b + 1) h (j + 1) (by omega) (by omega)).free ≫ (R f b h).free)
         ((R f b h).free ≫ (sigmaB (f + 1) b (by omega) j h1 h2).free)
-  /-- The conveyor relation: `L R = R L` (imposed for `f ≥ 1` and `b ≥ 1`, stated here at the
+  /-- The spiral relation: `L R = R L` (imposed for `f ≥ 1` and `b ≥ 1`, stated here at the
   object `(f + 1, b + 1)`). -/
-  | conveyor (f b : ℕ) (h : f + 1 + (b + 1) = n) :
+  | spiral (f b : ℕ) (h : f + 1 + (b + 1) = n) :
       TubeRel n
         ((L f (b + 1) h).free ≫ (R f (b + 1) (by omega)).free)
         ((R (f + 1) b h).free ≫ (L (f + 1) b (by omega)).free)
@@ -198,7 +198,7 @@ $$
 \qquad \sigma^B_{j+1}\,R=R\,\sigma^B_j\;\;(1\le j\le b-2)
 &&\text{($R$ bookkeeping)}\\[4pt]
 &LR=RL\;\;(f\ge 1,\; b\ge 1)
-&&\text{(conveyor)}\\[4pt]
+&&\text{(spiral)}\\[4pt]
 &\sigma^F_1\,LL=LL\,\sigma^B_{b+1}\;\;(f\ge 2),
 \qquad \sigma^B_1\,RR=RR\,\sigma^F_{f+1}\;\;(b\ge 2)
 &&\text{(seam slides)}
@@ -271,11 +271,11 @@ example (n : ℕ) :
       (Quiver.FreeGroupoid.of (TubeObj (n + 1))).obj ⟨n + 1, 0, by omega⟩ :=
   (L n 0 (by omega)).free ≫ (R n 0 (by omega)).free
 
-/- The conveyor relation `L R = R L` becomes an equality of morphisms in the tube groupoid,
+/- The spiral relation `L R = R L` becomes an equality of morphisms in the tube groupoid,
 here at the object `(1, 1)` of the two-strand groupoid. -/
 example :
     (TubeGroupoid.proj 2).map ((L 0 1 (by omega)).free ≫ (R 0 1 (by omega)).free) =
       (TubeGroupoid.proj 2).map ((R 1 0 (by omega)).free ≫ (L 1 0 (by omega)).free) :=
-  CategoryTheory.Quotient.sound _ (TubeRel.conveyor 0 0 (by omega))
+  CategoryTheory.Quotient.sound _ (TubeRel.spiral 0 0 (by omega))
 
 end SmokeTests
