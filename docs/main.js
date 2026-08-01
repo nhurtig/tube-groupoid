@@ -338,7 +338,14 @@ function closeHelp() { helpModal.hidden = true; }
 document.getElementById('helpBtn').addEventListener('click', openHelp);
 document.getElementById('helpClose').addEventListener('click', closeHelp);
 helpModal.addEventListener('click', (e) => { if (e.target === helpModal) closeHelp(); });
-if (params.get('help') !== '0') openHelp(); // pops up on first load
+// Auto-open only on this browser's first visit (Help button reopens any time).
+const HELP_SEEN_KEY = 'tubeGroupoidHelpSeen';
+let helpSeen = false;
+try { helpSeen = localStorage.getItem(HELP_SEEN_KEY) === '1'; } catch { /* storage blocked */ }
+if (params.get('help') !== '0' && !helpSeen) {
+  openHelp();
+  try { localStorage.setItem(HELP_SEEN_KEY, '1'); } catch { /* best effort */ }
+}
 
 // --- render loop -----------------------------------------------------------
 
