@@ -1,9 +1,9 @@
+/-
+Copyright (c) 2026 Nat Hurtig. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Nat Hurtig
+-/
 import Mathlib
-
--- No copyright header yet: the project has no LICENSE file, so the mathlib-style header (which
--- asserts an Apache 2.0 license) would be inaccurate.  Silence the header linter until the
--- project picks a license and an author line.
-set_option linter.style.header false
 
 /-!
 # The tube groupoid
