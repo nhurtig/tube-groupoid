@@ -140,7 +140,8 @@ const letterB = letterMesh('B', false);  // beyond the back bed, facing the annu
 const state = {
   mode: 'annulus',            // 'annulus' | 'front'
   x: 0, y: 0,
-  look: { annulus: { yaw: Math.PI, pitch: 0 }, front: { yaw: 0, pitch: 0 } },
+  // One shared frustum: toggling views only changes the camera's z.
+  look: { yaw: Math.PI, pitch: 0 },
 };
 const keys = { up: false, down: false, left: false, right: false };
 
@@ -153,7 +154,6 @@ function clampCamera() {
 
 function setMode(mode) {
   state.mode = mode;
-  if (mode === 'front') state.look.front = { yaw: 0, pitch: 0 }; // level, toward the front bed
   document.getElementById('viewBtn').textContent =
     mode === 'annulus' ? 'View: annulus (press V for front)' : 'View: front (press V for annulus)';
 }
@@ -178,7 +178,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
 });
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (!dragging) return;
-  const look = state.look[state.mode];
+  const look = state.look;
   look.yaw -= e.movementX * LOOK_SPEED;
   look.pitch -= e.movementY * LOOK_SPEED;
   look.pitch = Math.min(Math.max(look.pitch, -1.52), 1.52);
@@ -281,7 +281,7 @@ function buildShareURL() {
   p.set('view', state.mode);
   p.set('x', state.x.toFixed(2));
   p.set('y', state.y.toFixed(2));
-  const look = state.look[state.mode];
+  const look = state.look;
   p.set('yaw', look.yaw.toFixed(3));
   p.set('pitch', look.pitch.toFixed(3));
   p.set('help', '0');
@@ -339,7 +339,7 @@ function frame(now) {
   state.y += dy * step;
   clampCamera();
 
-  const look = state.look[state.mode];
+  const look = state.look;
   camera.position.set(state.x, state.y, camZ());
   camera.rotation.set(look.pitch, look.yaw, 0);
 
@@ -364,13 +364,12 @@ setMode(params.get('view') === 'front' ? 'front' : 'annulus');
 rebuild();
 if (params.has('x')) state.x = Number(params.get('x')) || 0;
 if (params.has('y')) state.y = Number(params.get('y')) || 0;
-{
-  // Restore the shared look direction (after setMode, which resets front view).
-  const look = state.look[state.mode];
-  if (params.has('yaw')) look.yaw = Number(params.get('yaw')) || 0;
-  if (params.has('pitch')) {
-    look.pitch = Math.min(Math.max(Number(params.get('pitch')) || 0, -1.52), 1.52);
-  }
+// A fresh load straight into the front view starts facing the braid; explicit
+// yaw/pitch parameters (e.g. from a shared link) override.
+if (state.mode === 'front') state.look.yaw = 0;
+if (params.has('yaw')) state.look.yaw = Number(params.get('yaw')) || 0;
+if (params.has('pitch')) {
+  state.look.pitch = Math.min(Math.max(Number(params.get('pitch')) || 0, -1.52), 1.52);
 }
 clampCamera();
 requestAnimationFrame(frame);
