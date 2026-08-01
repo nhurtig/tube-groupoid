@@ -1,5 +1,10 @@
 import Mathlib
 
+-- No copyright header yet: the project has no LICENSE file, so the mathlib-style header (which
+-- asserts an Apache 2.0 license) would be inaccurate.  Silence the header linter until the
+-- project picks a license and an author line.
+set_option linter.style.header false
+
 /-!
 # The tube groupoid
 
@@ -75,7 +80,8 @@ inductive TubeRel (n : ℕ) : HomRel (Quiver.FreeGroupoid (TubeObj n)) where
         ((sigmaF f b h (i + 1) (by omega) h2).free ≫ (sigmaF f b h i h1 (by omega)).free ≫
           (sigmaF f b h (i + 1) (by omega) h2).free)
   /-- Distant crossings in the front row commute: `σ^F_i σ^F_j = σ^F_j σ^F_i` for
-  `|i - j| ≥ 2`. -/
+  `|i - j| ≥ 2`.  Stated only for `i + 2 ≤ j`; the other order is the same relation read
+  backwards, so it holds in the quotient by symmetry. -/
   | commF (f b : ℕ) (h : f + b = n) (i j : ℕ) (h1 : 1 ≤ i) (hij : i + 2 ≤ j) (h2 : j < f) :
       TubeRel n
         ((sigmaF f b h i h1 (by omega)).free ≫ (sigmaF f b h j (by omega) h2).free)
@@ -89,7 +95,8 @@ inductive TubeRel (n : ℕ) : HomRel (Quiver.FreeGroupoid (TubeObj n)) where
         ((sigmaB f b h (j + 1) (by omega) h2).free ≫ (sigmaB f b h j h1 (by omega)).free ≫
           (sigmaB f b h (j + 1) (by omega) h2).free)
   /-- Distant crossings in the back row commute: `σ^B_i σ^B_j = σ^B_j σ^B_i` for
-  `|i - j| ≥ 2`. -/
+  `|i - j| ≥ 2`.  Stated only for `i + 2 ≤ j`; the other order is the same relation read
+  backwards, so it holds in the quotient by symmetry. -/
   | commB (f b : ℕ) (h : f + b = n) (i j : ℕ) (h1 : 1 ≤ i) (hij : i + 2 ≤ j) (h2 : j < b) :
       TubeRel n
         ((sigmaB f b h i h1 (by omega)).free ≫ (sigmaB f b h j (by omega) h2).free)
@@ -235,7 +242,7 @@ is a one-liner: this $L$ is that $L$, and this $R$ is that $R^{-1}$.
 def TubeGroupoid (n : ℕ) : Type :=
   CategoryTheory.Quotient (TubeRel n)
 
-noncomputable instance (n : ℕ) : Groupoid (TubeGroupoid n) :=
+instance (n : ℕ) : Groupoid (TubeGroupoid n) :=
   inferInstanceAs (Groupoid (CategoryTheory.Quotient (TubeRel n)))
 
 /-- The presentation functor, from the free groupoid on the generating quiver onto the tube
@@ -243,3 +250,32 @@ groupoid.  Generators are sent to their classes, and the relations `TubeRel n` b
 of morphisms in `TubeGroupoid n`. -/
 def TubeGroupoid.proj (n : ℕ) : Quiver.FreeGroupoid (TubeObj n) ⥤ TubeGroupoid n :=
   CategoryTheory.Quotient.functor (TubeRel n)
+
+/-!
+Smoke tests: the generators are inhabited at small objects, the rotation `ρ = L R` parses even
+with an empty back row, and the relations really identify morphisms in the quotient.  These
+guard the presentation against silent index or side-condition drift under future edits.
+-/
+
+section SmokeTests
+
+open TubeGen
+
+/- With both of two strands on the front row, the single braid generator `σ^F_1` exists. -/
+example : TubeGen 2 ⟨2, 0, rfl⟩ ⟨2, 0, rfl⟩ := sigmaF 2 0 rfl 1 le_rfl one_lt_two
+
+/- The rotation `ρ = L R` is a loop at the basepoint `(n + 1, 0)`: it parses even with an empty
+back row, where it degenerates into the pure "around the back" move. -/
+example (n : ℕ) :
+    (Quiver.FreeGroupoid.of (TubeObj (n + 1))).obj ⟨n + 1, 0, by omega⟩ ⟶
+      (Quiver.FreeGroupoid.of (TubeObj (n + 1))).obj ⟨n + 1, 0, by omega⟩ :=
+  (L n 0 (by omega)).free ≫ (R n 0 (by omega)).free
+
+/- The conveyor relation `L R = R L` becomes an equality of morphisms in the tube groupoid,
+here at the object `(1, 1)` of the two-strand groupoid. -/
+example :
+    (TubeGroupoid.proj 2).map ((L 0 1 (by omega)).free ≫ (R 0 1 (by omega)).free) =
+      (TubeGroupoid.proj 2).map ((R 1 0 (by omega)).free ≫ (L 1 0 (by omega)).free) :=
+  CategoryTheory.Quotient.sound _ (TubeRel.conveyor 0 0 (by omega))
+
+end SmokeTests
