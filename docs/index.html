@@ -61,6 +61,8 @@
   <div id="errBox" hidden></div>
   <div class="btnRow">
     <button id="helpBtn" type="button">Help</button>
+    <button id="shareBtn" type="button"
+      title="Copy link for word and view to clipboard">🔗 Share</button>
     <button id="viewBtn" type="button">View: annulus (press V for front)</button>
   </div>
 </div>
@@ -113,10 +115,10 @@
     <h3>Controls</h3>
     <ul>
       <li><b>Left-click drag</b> — pan the view (look around).</li>
-      <li><b>W / ↑ / Space</b> — fly up; <b>S / ↓ / Shift</b> — fly down
-        (capped by the word’s length).</li>
+      <li><b>W / ↑</b> — fly up; <b>S / ↓</b> — fly down (capped by the word’s length).</li>
       <li><b>A / ←</b> and <b>D / →</b> — move left / right along x, relative to where you are
-        looking (capped by the braid’s width).</li>
+        looking (capped by the braid’s width). Movement accelerates the longer you hold a
+        key.</li>
       <li><b>V</b> or the view button — swap between the <b>annulus</b> view (from inside the
         tube, F ahead of you and B behind) and the <b>front</b> view (from outside, level with
         the front bed — classic braid-diagram reading; the outline gaps show which strand
@@ -124,6 +126,8 @@
       <li><b>Word box</b> — edits re-render live. Whitespace is ignored, generators are
         case-insensitive, <code>#</code> comments to the end of the line. The two number
         entries pick the starting object <code>(f, b)</code>.</li>
+      <li><b>🔗 Share</b> — copies a link to the clipboard that reproduces the current word,
+        starting object, view, camera position and look direction.</li>
     </ul>
 
     <p class="dim">The preloaded demo word walks through every relation: each line multiplies a

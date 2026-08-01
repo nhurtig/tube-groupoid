@@ -7,7 +7,9 @@ const GEOM = { spacing: 1, bedZ: 2.2, crossZ: 0.45, seamMargin: 1.4 };
 const STRAND_RADIUS = 0.07;
 const OUTLINE_RADIUS = 0.14;
 const FRONT_CAM_DIST = 7;      // camera z in front view: bedZ + FRONT_CAM_DIST
-const MOVE_SPEED = 5;          // world units / second
+const MOVE_BASE = 4;           // world units / second on a fresh keypress
+const MOVE_ACCEL = 1.2;        // speed factor growth per second of held movement
+const MOVE_MAX_FACTOR = 10;    // acceleration cap
 const LOOK_SPEED = 0.005;      // radians / pixel
 const COLORS = { F: 0xd62828, B: 0x1d4ed8, outline: 0x1c1c1c, bg: 0xfafafa };
 
@@ -191,9 +193,8 @@ window.addEventListener('keydown', (e) => {
   if (isEditing(e)) return;
   let used = true;
   switch (e.code) {
-    case 'KeyW': case 'ArrowUp': case 'Space': keys.up = true; break;
+    case 'KeyW': case 'ArrowUp': keys.up = true; break;
     case 'KeyS': case 'ArrowDown': keys.down = true; break;
-    case 'ShiftLeft': case 'ShiftRight': keys.down = true; break;
     case 'KeyA': case 'ArrowLeft': keys.left = true; break;
     case 'KeyD': case 'ArrowRight': keys.right = true; break;
     case 'KeyV': setMode(state.mode === 'annulus' ? 'front' : 'annulus'); break;
@@ -208,9 +209,8 @@ window.addEventListener('blur', () => {
 });
 window.addEventListener('keyup', (e) => {
   switch (e.code) {
-    case 'KeyW': case 'ArrowUp': case 'Space': keys.up = false; break;
+    case 'KeyW': case 'ArrowUp': keys.up = false; break;
     case 'KeyS': case 'ArrowDown': keys.down = false; break;
-    case 'ShiftLeft': case 'ShiftRight': keys.down = false; break;
     case 'KeyA': case 'ArrowLeft': keys.left = false; break;
     case 'KeyD': case 'ArrowRight': keys.right = false; break;
     default: break;
@@ -224,7 +224,8 @@ const bInput = document.getElementById('bInput');
 const wordInput = document.getElementById('wordInput');
 const errBox = document.getElementById('errBox');
 
-// Shareable-link / dev parameters: ?word=…&f=…&b=…&view=front&x=…&y=…&help=0
+// Shareable-link / dev parameters:
+//   ?word=…&f=…&b=…&view=front&x=…&y=…&yaw=…&pitch=…&help=0
 const params = new URLSearchParams(location.search);
 
 if (params.has('word')) {
@@ -269,6 +270,45 @@ for (const el of [fInput, bInput, wordInput]) el.addEventListener('input', sched
 
 // --- help modal ------------------------------------------------------------
 
+// --- share button ----------------------------------------------------------
+
+function buildShareURL() {
+  const u = new URL(location.origin + location.pathname);
+  const p = u.searchParams;
+  p.set('f', fInput.value);
+  p.set('b', bInput.value);
+  p.set('word', wordInput.value);
+  p.set('view', state.mode);
+  p.set('x', state.x.toFixed(2));
+  p.set('y', state.y.toFixed(2));
+  const look = state.look[state.mode];
+  p.set('yaw', look.yaw.toFixed(3));
+  p.set('pitch', look.pitch.toFixed(3));
+  p.set('help', '0');
+  return u.toString();
+}
+
+const shareBtn = document.getElementById('shareBtn');
+const shareLabel = shareBtn.textContent;
+let shareTimer = null;
+shareBtn.addEventListener('click', async () => {
+  const url = buildShareURL();
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(url);
+    copied = true;
+  } catch {
+    window.prompt('Copy this link:', url); // clipboard API unavailable
+  }
+  if (copied) {
+    shareBtn.textContent = '✓ Copied!';
+    clearTimeout(shareTimer);
+    shareTimer = setTimeout(() => { shareBtn.textContent = shareLabel; }, 1400);
+  }
+});
+
+// --- help modal ------------------------------------------------------------
+
 const helpModal = document.getElementById('helpModal');
 function openHelp() { helpModal.hidden = false; }
 function closeHelp() { helpModal.hidden = true; }
@@ -281,14 +321,16 @@ if (params.get('help') !== '0') openHelp(); // pops up on first load
 
 const hud = document.getElementById('hud');
 let lastT = performance.now();
+let heldTime = 0; // how long a movement key has been held: speed ramps up with it
 
 function frame(now) {
   const dt = Math.min((now - lastT) / 1000, 0.1);
   lastT = now;
 
-  const step = MOVE_SPEED * dt;
   const dy = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
   const lr = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  heldTime = (dy !== 0 || lr !== 0) ? heldTime + dt : 0;
+  const step = MOVE_BASE * Math.min(1 + MOVE_ACCEL * heldTime, MOVE_MAX_FACTOR) * dt;
   if (lr !== 0) {
     // 'd' goes toward the frustum's right, projected onto the x axis.
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
@@ -322,5 +364,13 @@ setMode(params.get('view') === 'front' ? 'front' : 'annulus');
 rebuild();
 if (params.has('x')) state.x = Number(params.get('x')) || 0;
 if (params.has('y')) state.y = Number(params.get('y')) || 0;
+{
+  // Restore the shared look direction (after setMode, which resets front view).
+  const look = state.look[state.mode];
+  if (params.has('yaw')) look.yaw = Number(params.get('yaw')) || 0;
+  if (params.has('pitch')) {
+    look.pitch = Math.min(Math.max(Number(params.get('pitch')) || 0, -1.52), 1.52);
+  }
+}
 clampCamera();
 requestAnimationFrame(frame);
