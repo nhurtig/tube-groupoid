@@ -1,5 +1,7 @@
 import * as THREE from './three.module.js';
-import { parseWord, simulate, strandPaths, DEMO_WORD, DEMO_OBJECT } from './engine.js';
+import {
+  parseWord, simulate, strandPaths, DEMO_WORD, DEMO_OBJECT, MAX_STRANDS,
+} from './engine.js';
 
 // --- constants -------------------------------------------------------------
 
@@ -93,16 +95,21 @@ function disposeGroup(group) {
 
 function buildBraid(paths) {
   const group = new THREE.Group();
+  // Tessellation degrades gracefully with braid size, so even cap-sized
+  // braids build in bounded time and memory.
+  const units = paths.strands.reduce((a, s) => a + s.segments.length, 0);
+  const perUnit = Math.max(3, Math.min(14, Math.floor(400000 / Math.max(units, 1))));
+  const radial = units > 30000 ? 6 : 10;
   for (const strand of paths.strands) {
     if (strand.segments.length === 0) continue;
     const path = new THREE.CurvePath();
     for (const seg of strand.segments) path.add(segmentCurve(seg));
-    const tubular = Math.max(32, strand.segments.length * 14);
+    const tubular = Math.max(24, strand.segments.length * perUnit);
     const core = new THREE.Mesh(
-      new THREE.TubeGeometry(path, tubular, STRAND_RADIUS, 10, false),
+      new THREE.TubeGeometry(path, tubular, STRAND_RADIUS, radial, false),
       new THREE.MeshBasicMaterial({ color: COLORS[strand.home] }));
     const outline = new THREE.Mesh(
-      new THREE.TubeGeometry(path, tubular, OUTLINE_RADIUS, 10, false),
+      new THREE.TubeGeometry(path, tubular, OUTLINE_RADIUS, radial, false),
       new THREE.MeshBasicMaterial({ color: COLORS.outline, side: THREE.BackSide }));
     group.add(core, outline);
   }
@@ -181,6 +188,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
     renderer.domElement.releasePointerCapture(e.pointerId);
   }
 });
+renderer.domElement.addEventListener('pointercancel', () => { dragging = false; });
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (!dragging) return;
   const look = state.look[state.mode];
@@ -211,6 +219,7 @@ function isEditing(e) {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') { closeHelp(); return; } // works even while editing
   if (isEditing(e)) return;
   let used = true;
   switch (e.code) {
@@ -218,8 +227,7 @@ window.addEventListener('keydown', (e) => {
     case 'KeyS': case 'ArrowDown': keys.down = true; break;
     case 'KeyA': case 'ArrowLeft': keys.left = true; break;
     case 'KeyD': case 'ArrowRight': keys.right = true; break;
-    case 'KeyV': setMode(state.mode === 'annulus' ? 'front' : 'annulus'); break;
-    case 'Escape': closeHelp(); break;
+    case 'KeyV': if (!e.repeat) setMode(state.mode === 'annulus' ? 'front' : 'annulus'); break;
     default: used = false;
   }
   if (used) e.preventDefault();
@@ -246,11 +254,29 @@ const wordInput = document.getElementById('wordInput');
 const errBox = document.getElementById('errBox');
 
 // Shareable-link / dev parameters:
-//   ?word=…&f=…&b=…&view=front&x=…&y=…&yaw=…&pitch=…&help=0
+//   ?word=…&f=…&b=…&view=front&x=…&y=…&yaw=…&pitch=…&bedz=…&dist=…&help=0
 const params = new URLSearchParams(location.search);
 
-if (params.has('word')) {
-  wordInput.value = params.get('word');
+// URLSearchParams decodes '+' as a space (form encoding), which would mangle
+// every hand-typed plus-heavy word link; read `word` from the raw query with
+// decodeURIComponent, which leaves '+' alone.
+function rawWordParam() {
+  for (const part of location.search.replace(/^\?/, '').split('&')) {
+    if (part.startsWith('word=')) {
+      // On a malformed escape, fall back to the raw text: the parser will
+      // then show a visible, positioned error instead of a vanished word.
+      try { return decodeURIComponent(part.slice(5)); } catch { return part.slice(5); }
+    }
+  }
+  return null;
+}
+
+fInput.max = MAX_STRANDS;
+bInput.max = MAX_STRANDS;
+
+const urlWord = rawWordParam();
+if (urlWord !== null || params.has('f') || params.has('b')) {
+  wordInput.value = urlWord ?? '';
   if (params.has('f')) fInput.value = params.get('f');
   if (params.has('b')) bInput.value = params.get('b');
 } else if (!wordInput.value.trim()) {
@@ -258,6 +284,8 @@ if (params.has('word')) {
   fInput.value = DEMO_OBJECT.f;
   bInput.value = DEMO_OBJECT.b;
 }
+
+let builtBedZ = GEOM.bedZ; // bed separation of the braid actually on screen
 
 function rebuild() {
   const f = Math.max(0, Math.floor(Number(fInput.value) || 0));
@@ -270,9 +298,13 @@ function rebuild() {
   } catch (err) {
     errBox.textContent = err.message;
     errBox.hidden = false;
-    return; // keep showing the last good braid
+    // Keep showing the last good braid — and keep the letters and front
+    // camera in sync with it by reverting any scrolled bed separation.
+    GEOM.bedZ = builtBedZ;
+    return;
   }
   errBox.hidden = true;
+  builtBedZ = GEOM.bedZ;
   if (braidGroup) disposeGroup(braidGroup);
   braidGroup = buildBraid(paths);
   scene.add(braidGroup);
@@ -294,21 +326,17 @@ for (const el of [fInput, bInput, wordInput]) el.addEventListener('input', sched
 // --- share button ----------------------------------------------------------
 
 function buildShareURL() {
-  const u = new URL(location.origin + location.pathname);
-  const p = u.searchParams;
-  p.set('f', fInput.value);
-  p.set('b', bInput.value);
-  p.set('word', wordInput.value);
-  p.set('view', state.mode);
-  p.set('x', state.x.toFixed(2));
-  p.set('y', state.y.toFixed(2));
   const look = state.look[state.mode];
-  p.set('yaw', look.yaw.toFixed(3));
-  p.set('pitch', look.pitch.toFixed(3));
-  p.set('bedz', GEOM.bedZ.toFixed(2));
-  p.set('dist', frontDist.toFixed(2));
-  p.set('help', '0');
-  return u.toString();
+  // Built by hand (not URLSearchParams) so spaces become %20, never '+':
+  // the resulting links survive both parsers and hand editing.
+  const q = [
+    ['f', fInput.value], ['b', bInput.value], ['word', wordInput.value],
+    ['view', state.mode], ['x', state.x.toFixed(2)], ['y', state.y.toFixed(2)],
+    ['yaw', look.yaw.toFixed(3)], ['pitch', look.pitch.toFixed(3)],
+    ['bedz', GEOM.bedZ.toFixed(2)], ['dist', frontDist.toFixed(2)], ['help', '0'],
+  ];
+  return `${location.origin}${location.pathname}?` +
+    q.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
 }
 
 const shareBtn = document.getElementById('shareBtn');
@@ -337,7 +365,14 @@ function openHelp() { helpModal.hidden = false; }
 function closeHelp() { helpModal.hidden = true; }
 document.getElementById('helpBtn').addEventListener('click', openHelp);
 document.getElementById('helpClose').addEventListener('click', closeHelp);
-helpModal.addEventListener('click', (e) => { if (e.target === helpModal) closeHelp(); });
+// Close on backdrop click — but only when the press also started on the
+// backdrop, so a text-selection drag ending outside the card doesn't close.
+let pressOnBackdrop = false;
+helpModal.addEventListener('pointerdown', (e) => { pressOnBackdrop = e.target === helpModal; });
+helpModal.addEventListener('click', (e) => {
+  if (pressOnBackdrop && e.target === helpModal) closeHelp();
+  pressOnBackdrop = false;
+});
 // Auto-open only on this browser's first visit (Help button reopens any time).
 const HELP_SEEN_KEY = 'tubeGroupoidHelpSeen';
 let helpSeen = false;

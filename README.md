@@ -14,7 +14,8 @@ words in the tube groupoid (source in [`docs/`](docs/), served by GitHub Pages).
 - Pick a starting object `(f, b)`, then type a word. Edits re-render live.
 - Generators: `f0+ f0- b0+ b0- …` (0-based adjacent crossings; front indexed page-left to
   page-right, back indexed page-right to page-left) and `L+ L- R+ R-` (seam moves).
-  Whitespace-insensitive, case-insensitive, `#` comments.
+  Whitespace-insensitive, case-insensitive, `#` comments. Note the viewer's indices are
+  0-based while the presentation's σ indices are 1-based: `fi` is `σ^F_{i+1}`.
 - Two views: from inside the annulus, and a braid-diagram front view with cartoon
   over/under gaps. See the in-app Help for relations and controls.
 - The preloaded demo multiplies each relation's left side by the inverse of its right side —
@@ -33,7 +34,8 @@ mathlib as a presented groupoid:
 - `TubeRel n` — the relations, as a `HomRel` on the free groupoid over `TubeGen n`;
 - `TubeGroupoid n` — the quotient, a groupoid via `CategoryTheory.Quotient.groupoid`.
 
-Build with `lake build` (needs the mathlib toolchain; first build downloads the cache).
+Build with `lake exe cache get && lake build` — the first command downloads the prebuilt
+mathlib cache; plain `lake build` alone would compile mathlib from source for hours.
 
 ## License
 

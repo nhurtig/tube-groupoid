@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {
   parseWord, simulate, strandPaths, DEMO_WORD, DEMO_OBJECT,
+  MAX_STRANDS, MAX_GENERATORS, MAX_COMPLEXITY,
 } from '../docs/engine.js';
 
 // --- parsing ---------------------------------------------------------------
@@ -25,9 +26,27 @@ import {
   assert.equal(toks[1].bed, 'b');
 }
 
+{
+  // Genuinely whitespace-insensitive: whitespace may fall inside tokens too.
+  const toks = parseWord('f 0 +  b0\n-  L -');
+  assert.deepEqual(
+    toks.map((t) => (t.kind === 'sigma' ? `${t.bed}${t.index}${t.sign}` : `${t.dir}${t.sign}`)),
+    ['f01', 'b0-1', 'L-1'],
+    'whitespace inside tokens is ignored');
+}
+
 assert.throws(() => parseWord('f0f'), /expected an index and a sign/);
 assert.throws(() => parseWord('x'), /unexpected character 'x' \(at position 1\)/);
 assert.throws(() => parseWord('f0+ q'), /position 5/);
+
+// Size caps.
+assert.throws(() => parseWord('L+'.repeat(MAX_GENERATORS + 1)), /word too long/);
+assert.throws(() => simulate(MAX_STRANDS + 1, 0, []), /too many strands/);
+assert.throws(() => simulate(2.5, 0, []), /non-negative integers/);
+assert.throws(
+  () => simulate(50, 50, parseWord('f0+ '.repeat(Math.ceil(MAX_COMPLEXITY / 100) + 1))),
+  /too large to render/);
+assert.doesNotThrow(() => simulate(MAX_STRANDS, MAX_STRANDS, []));
 
 // --- simulation ------------------------------------------------------------
 

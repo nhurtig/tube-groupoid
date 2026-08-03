@@ -29,31 +29,50 @@ b0+ R+ R+ f4- R- R-       # seam slide, right`;
 // Bare L / R are accepted as L+ / R+.
 // ---------------------------------------------------------------------------
 
+// Rendering-safety caps (generous for real exploration, small enough that a
+// crafted shared link cannot freeze the tab).
+export const MAX_STRANDS = 50;      // per bed, at the starting object
+export const MAX_GENERATORS = 5000; // tokens in a word
+export const MAX_COMPLEXITY = 120000; // total strands × word length
+
 export function parseWord(src) {
+  // The syntax is genuinely whitespace-insensitive: strip comments and ALL
+  // whitespace first, keeping a map back to original positions for errors.
+  const chars = [], origin = [];
+  for (let i = 0; i < src.length; i += 1) {
+    const c = src[i];
+    if (c === '#') { while (i < src.length && src[i] !== '\n') i += 1; continue; }
+    if (/\s/.test(c)) continue;
+    chars.push(c); origin.push(i);
+  }
+  const s = chars.join('');
+  const sigmaRe = /(\d+)([+-])/y; // sticky: no per-token slicing of the source
   const tokens = [];
   let i = 0;
-  while (i < src.length) {
-    const c = src[i];
-    if (/\s/.test(c)) { i += 1; continue; }
-    if (c === '#') { while (i < src.length && src[i] !== '\n') i += 1; continue; }
-    const lc = c.toLowerCase();
+  while (i < s.length) {
+    const lc = s[i].toLowerCase();
     if (lc === 'f' || lc === 'b') {
-      const m = /^(\d+)([+-])/.exec(src.slice(i + 1));
-      if (!m) throw wordError(`expected an index and a sign after '${c}' (e.g. ${lc}0+)`, i);
+      sigmaRe.lastIndex = i + 1;
+      const m = sigmaRe.exec(s);
+      if (!m) throw wordError(`expected an index and a sign after '${s[i]}' (e.g. ${lc}0+)`, origin[i]);
       tokens.push({
         kind: 'sigma', bed: lc, index: parseInt(m[1], 10),
-        sign: m[2] === '+' ? 1 : -1, at: i, text: src.slice(i, i + 1 + m[0].length),
+        sign: m[2] === '+' ? 1 : -1, at: origin[i], text: s.slice(i, i + 1 + m[0].length),
       });
       i += 1 + m[0].length;
     } else if (lc === 'l' || lc === 'r') {
       let sign = 1, len = 1;
-      if (src[i + 1] === '+' || src[i + 1] === '-') { sign = src[i + 1] === '+' ? 1 : -1; len = 2; }
+      if (s[i + 1] === '+' || s[i + 1] === '-') { sign = s[i + 1] === '+' ? 1 : -1; len = 2; }
       tokens.push({
-        kind: 'seam', dir: lc === 'l' ? 'L' : 'R', sign, at: i, text: src.slice(i, i + len),
+        kind: 'seam', dir: lc === 'l' ? 'L' : 'R', sign, at: origin[i], text: s.slice(i, i + len),
       });
       i += len;
     } else {
-      throw wordError(`unexpected character '${c}'`, i);
+      throw wordError(`unexpected character '${s[i]}'`, origin[i]);
+    }
+    if (tokens.length > MAX_GENERATORS) {
+      throw wordError(`word too long: more than ${MAX_GENERATORS} generators`,
+        tokens[tokens.length - 1].at);
     }
   }
   return tokens;
@@ -77,6 +96,17 @@ function wordError(message, at) {
 // ---------------------------------------------------------------------------
 
 export function simulate(f0, b0, tokens) {
+  if (!Number.isInteger(f0) || !Number.isInteger(b0) || f0 < 0 || b0 < 0) {
+    throw new Error('the starting object must be a pair of non-negative integers');
+  }
+  if (f0 > MAX_STRANDS || b0 > MAX_STRANDS) {
+    throw new Error(`too many strands: at most ${MAX_STRANDS} per bed at the start`);
+  }
+  const complexity = (f0 + b0) * Math.max(tokens.length, 1);
+  if (complexity > MAX_COMPLEXITY) {
+    throw new Error(`braid too large to render: strands × word length = ${complexity} ` +
+      `(max ${MAX_COMPLEXITY})`);
+  }
   let front = [], back = [];
   for (let k = 1; k <= f0; k += 1) front.push({ home: 'F', num: k });
   for (let k = 1; k <= b0; k += 1) back.unshift({ home: 'B', num: k });

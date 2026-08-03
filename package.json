@@ -1,0 +1,8 @@
+{
+  "name": "tube-groupoid-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/engine.test.mjs"
+  }
+}

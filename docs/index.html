@@ -9,7 +9,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden;
     font: 14px/1.45 ui-sans-serif, system-ui, sans-serif; color: #1a1a1a; }
-  #scene { position: fixed; inset: 0; }
+  #scene { position: fixed; inset: 0; touch-action: none; }
   #panel { position: fixed; top: 12px; left: 12px; width: 300px; z-index: 5;
     max-height: calc(100% - 60px); overflow: auto;
     background: rgba(255,255,255,.94); border: 1px solid #ddd; border-radius: 10px;
@@ -93,6 +93,8 @@
         and appends at the right end of the front bed.</li>
       <li><b>Sign rule:</b> positive crossings are left-over-right from every viewpoint.
         Bare <code>L</code>, <code>R</code> mean <code>L+</code>, <code>R+</code>.</li>
+      <li class="dim">Indices here are 0-based; the σ generators of the written presentation
+        are 1-based, so <code>fi</code> = σ<sup>F</sup><sub>i+1</sub>.</li>
     </ul>
 
     <h3>Relations</h3>
